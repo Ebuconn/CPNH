@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GPX Routes Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100%; min-height: 600px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-gpx@1.7.0/gpx.min.js"></script>
+
+  <script>
+    var map = L.map('map').setView([41.7, -72.7], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    var gpxFiles = [
+      {
+        gpxUrl: 'https://raw.githubusercontent.com/Ebuconn/CPNH/main/AirlinetoWilli.gpx',
+        linkUrl: 'https://www.prexmap.com/prex-map-demo/airline-trail/airline-trail-north-bound',
+        color: '#ff0000',
+        name: 'Airline Trail'
+      },
+      {
+        gpxUrl: 'https://raw.githubusercontent.com/Ebuconn/CPNH/main/Mansfield_Hollow_MTB%20(1).gpx',
+        linkUrl: 'https://www.prexmap.com/prex-map-demo/mansfield-hollow-mtb',
+        color: '#0000ff',
+        name: 'Mansfield Hollow MTB'
+      }
+    ];
+
+    var group = L.featureGroup().addTo(map);
+    var loaded = 0;
+
+    function wireClicks(layerGroup, item) {
+      layerGroup.eachLayer(function(layer) {
+        if (layer && typeof layer.eachLayer === 'function' && !(layer instanceof L.Path)) {
+          wireClicks(layer, item);
+          return;
+        }
+        if (layer instanceof L.Path) {
+          layer.on('click', function(ev) {
+            if (ev && ev.originalEvent) ev.originalEvent.stopPropagation();
+            // Open in new tab so iframe embedding doesn't break (prevents "refused to connect")
+            window.open(item.linkUrl, '_blank', 'noopener,noreferrer');
+          });
+          if (item.name) layer.bindTooltip(item.name + ' (click)', { sticky: true });
+        }
+      });
+    }
+
+    gpxFiles.forEach(function(item) {
+      var gpx = new L.GPX(item.gpxUrl, {
+        async: true,
+        polyline_options: {
+          color: item.color || 'red',
+          weight: 6,
+          opacity: 0.9
+        },
+        marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null }
+      });
+
+      gpx.on('loaded', function() {
+        loaded++;
+        group.addLayer(gpx);
+        wireClicks(gpx, item);
+
+        if (loaded === gpxFiles.length) {
+          map.fitBounds(group.getBounds(), { padding: [20, 20] });
+        }
+      });
+
+      gpx.on('error', function(e) {
+        console.error('GPX failed:', item.gpxUrl, e);
+      });
+
+      gpx.addTo(map);
+    });
+  </script>
+</body>
+</html>
